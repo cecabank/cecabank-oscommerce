@@ -1,5 +1,8 @@
 # Cecabank Addon OsCommerce
 
+# Más información
+
+Para tener más información de como instalar el plugin de Cecabank en OsCommerce puede ver el manual de este plugin en la sección Ayuda y Recursos de la consola de Cecabank.
 
 # Descripción
 
