@@ -38,11 +38,12 @@ class cecabank {
       $this->order_status = MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID;
     }
 
-    if (is_object($order)) $this->update_status();
-
-    $config = $this-> get_client_config();
-    $cecabank_client = new Cecabank\Client($config);
-    $this->form_action_url = $cecabank_client->getPath();
+    if (is_object($order)) {
+      $this->update_status();
+      $config = $this-> get_client_config();
+      $cecabank_client = new Cecabank\Client($config);
+      $this->form_action_url = $cecabank_client->getPath();
+    }
   }
   
   function update_status() {
