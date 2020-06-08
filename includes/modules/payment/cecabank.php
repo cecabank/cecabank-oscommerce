@@ -51,7 +51,7 @@ class cecabank {
 
     if ( ($this->enabled == true) && ((int)MODULE_PAYMENT_CECABANK_ZONE > 0) ) {
       $check_flag = false;
-      $check_query = tep_db_query("select zone_id from " . TABLE_ZONES_TO_GEO_ZONES . " where geo_zone_id = '" . MODULE_PAYMENT_CECABANK_ZONE . "' and zone_country_id = '" . $order->billing['country']['id'] . "' order by zone_id");
+      $check_query = tep_db_query("select zone_id from zones_to_geo_zones where geo_zone_id = '" . MODULE_PAYMENT_CECABANK_ZONE . "' and zone_country_id = '" . $order->billing['country']['id'] . "' order by zone_id");
       while ($check = tep_db_fetch_array($check_query)) {
         if ($check['zone_id'] < 1) {
           $check_flag = true;
@@ -228,41 +228,41 @@ class cecabank {
   function update_order($order_id) {
     $new_order_status = (MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID > 0 ? MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID : DEFAULT_ORDERS_STATUS_ID);
 
-    tep_db_query("update " . TABLE_ORDERS . " set orders_status = '" . (int)$new_order_status . "', last_modified = now() where orders_id = '" . (int)$order_id . "'");
+    tep_db_query("update orders set orders_status = '" . (int)$new_order_status . "', last_modified = now() where orders_id = '" . (int)$order_id . "'");
 
     $sql_data_array = array('orders_id' => (int)$order_id,
                                   'orders_status_id' => MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID,
                                   'date_added' => 'now()',
                                   'customer_notified' => '0',
                                   'comments' => 'Cecabank');
-    tep_db_perform(TABLE_ORDERS_STATUS_HISTORY, $sql_data_array);
+    tep_db_perform('orders_status_history', $sql_data_array);
   }
   
 	function check() {
 	  if (!isset($this->_check)) {
-	    $check_query = tep_db_query("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYMENT_CECABANK_STATUS'");
+	    $check_query = tep_db_query("select configuration_value from configuration where configuration_key = 'MODULE_PAYMENT_CECABANK_STATUS'");
 	    $this->_check = tep_db_num_rows($check_query);
 	  }
 	  return $this->_check;
 	}
 
   function install() {
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Habilitar módulo Cecabank', 'MODULE_PAYMENT_CECABANK_STATUS', 'True', '¿Acepta recibir pagos en Cecabank?', '6', '0', 'tep_cfg_select_option(array(\'True\', \'False\'), ', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Merchant ID', 'MODULE_PAYMENT_CECABANK_MERCHANT', '', 'Merchant ID', '6', '1', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Acquirer', 'MODULE_PAYMENT_CECABANK_ACQUIRER', '', 'Acquirer', '6', '1', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Terminal ID', 'MODULE_PAYMENT_CECABANK_TERMINAL', '', 'Terminal ID', '6', '1', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Clave Secreta', 'MODULE_PAYMENT_CECABANK_SECRET', '', 'Clave Secreta', '6', '1', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Título', 'MODULE_PAYMENT_CECABANK_TITLE', 'Tarjeta', 'Título', '6', '1', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Description', 'MODULE_PAYMENT_CECABANK_DESCRIPTION', 'Paga con tu tarjeta', 'Descripción', '6', '1', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Zona de pago', 'MODULE_PAYMENT_CECABANK_ZONE', '0', 'Si la zona es seleccionada, solo se puede usar este pago en esta zona.', '6', '4', 'tep_get_zone_class_title', 'tep_cfg_pull_down_zone_classes(', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Estado de orden', 'MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID', '2', 'Seleccionar el estado de la orden cuando el pago se ha realizado<br />(\'Processing\' recomendado)', '6', '6', 'tep_cfg_pull_down_order_statuses(', 'tep_get_order_status_name', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Order para mostrar', 'MODULE_PAYMENT_CECABANK_SORT_ORDER', '0', 'Un número lo mostrará de primero.', '6', '8', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Real o Prueba', 'MODULE_PAYMENT_CECABANK_ENVIRONMENT', 'prueba', '<strong>Real: </strong>  Para procesar transacciones reales<br/><strong>Test: </strong>Para desarrollo y prueba', '6', '25', 'tep_cfg_select_option(array(\'real\', \'test\'), ', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Moneda', 'MODULE_PAYMENT_CECABANK_CURRENCY', '978', '<strong>Euro: </strong> 978, <strong>Dolares: </strong> 840', '6', '0', 'tep_cfg_select_option(array(\'978\', \'840\'), ', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Habilitar módulo Cecabank', 'MODULE_PAYMENT_CECABANK_STATUS', 'True', '¿Acepta recibir pagos en Cecabank?', '6', '0', 'tep_cfg_select_option(array(\'True\', \'False\'), ', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Merchant ID', 'MODULE_PAYMENT_CECABANK_MERCHANT', '', 'Merchant ID', '6', '1', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Acquirer', 'MODULE_PAYMENT_CECABANK_ACQUIRER', '', 'Acquirer', '6', '1', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Terminal ID', 'MODULE_PAYMENT_CECABANK_TERMINAL', '', 'Terminal ID', '6', '1', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Clave Secreta', 'MODULE_PAYMENT_CECABANK_SECRET', '', 'Clave Secreta', '6', '1', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Título', 'MODULE_PAYMENT_CECABANK_TITLE', 'Tarjeta', 'Título', '6', '1', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Description', 'MODULE_PAYMENT_CECABANK_DESCRIPTION', 'Paga con tu tarjeta', 'Descripción', '6', '1', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Zona de pago', 'MODULE_PAYMENT_CECABANK_ZONE', '0', 'Si la zona es seleccionada, solo se puede usar este pago en esta zona.', '6', '4', 'tep_get_zone_class_title', 'tep_cfg_pull_down_zone_classes(', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Estado de orden', 'MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID', '2', 'Seleccionar el estado de la orden cuando el pago se ha realizado<br />(\'Processing\' recomendado)', '6', '6', 'tep_cfg_pull_down_order_statuses(', 'tep_get_order_status_name', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Order para mostrar', 'MODULE_PAYMENT_CECABANK_SORT_ORDER', '0', 'Un número lo mostrará de primero.', '6', '8', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Real o Prueba', 'MODULE_PAYMENT_CECABANK_ENVIRONMENT', 'prueba', '<strong>Real: </strong>  Para procesar transacciones reales<br/><strong>Test: </strong>Para desarrollo y prueba', '6', '25', 'tep_cfg_select_option(array(\'real\', \'test\'), ', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Moneda', 'MODULE_PAYMENT_CECABANK_CURRENCY', '978', '<strong>Euro: </strong> 978, <strong>Dolares: </strong> 840', '6', '0', 'tep_cfg_select_option(array(\'978\', \'840\'), ', now())");
   }
   
   function remove() {
-    tep_db_query("delete from " . TABLE_CONFIGURATION . " where configuration_key LIKE 'MODULE\_PAYMENT\_CECABANK\_%'");
+    tep_db_query("delete from configuration where configuration_key LIKE 'MODULE\_PAYMENT\_CECABANK\_%'");
   }
   /**
    * Internal list of configuration keys used for configuration of the module

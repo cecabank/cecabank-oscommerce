@@ -49,7 +49,7 @@ try {
     require(DIR_WS_CLASSES . "order.php");
     $order = new order($_POST['Num_operacion']);
 
-$order_status_query = tep_db_query("SELECT orders_status_id FROM " . TABLE_ORDERS_STATUS . " WHERE orders_status_name = '" . $order->info['orders_status'] . "' AND language_id = '" . $languages_id . "'");
+$order_status_query = tep_db_query("SELECT orders_status_id FROM orders_status WHERE orders_status_name = '" . $order->info['orders_status'] . "' AND language_id = '" . $languages_id . "'");
     $order_status = tep_db_fetch_array($order_status_query);
     $order->info['order_status'] = $order_status['orders_status_id'];
     require(DIR_WS_CLASSES . "order_total.php");
