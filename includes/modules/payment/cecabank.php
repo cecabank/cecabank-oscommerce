@@ -94,7 +94,7 @@ class cecabank {
       $icon = "https://pgw.ceca.es/TPVvirtual/images/logo".$acquirer.".gif";
     }
     return array('id' => $this->code,
-                 'module' => MODULE_PAYMENT_CECABANK_TITLE."<br><span style='font-weight: normal'>".MODULE_PAYMENT_CECABANK_DESCRIPTION."</span><br><img src='https://pgw.ceca.es/TPVvirtual/images/logo".$icon.".gif'>");
+                 'module' => MODULE_PAYMENT_CECABANK_TITLE."<br><span style='font-weight: normal'>".MODULE_PAYMENT_CECABANK_DESCRIPTION."</span><br><img src='".$icon."'>");
   }
 
   function pre_confirmation_check() {
