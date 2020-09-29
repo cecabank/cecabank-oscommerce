@@ -88,8 +88,13 @@ class cecabank {
   }
   
   function selection() {
+    $icon = MODULE_PAYMENT_CECABANK_ICON;
+    $acquirer = MODULE_PAYMENT_CECABANK_ACQUIRER;
+    if ($acquirer && $acquirer !== '0000554000' && $icon === "https://pgw.ceca.es/TPVvirtual/images/logo0000554000.gif") {
+      $icon = "https://pgw.ceca.es/TPVvirtual/images/logo".$acquirer.".gif";
+    }
     return array('id' => $this->code,
-                 'module' => MODULE_PAYMENT_CECABANK_TITLE."<br><span style='font-weight: normal'>".MODULE_PAYMENT_CECABANK_DESCRIPTION."</span><br><img src='https://pgw.ceca.es/TPVvirtual/images/logo".MODULE_PAYMENT_CECABANK_ACQUIRER.".gif'>");
+                 'module' => MODULE_PAYMENT_CECABANK_TITLE."<br><span style='font-weight: normal'>".MODULE_PAYMENT_CECABANK_DESCRIPTION."</span><br><img src='".$icon."'>");
   }
 
   function pre_confirmation_check() {
@@ -259,6 +264,7 @@ class cecabank {
     tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Order para mostrar', 'MODULE_PAYMENT_CECABANK_SORT_ORDER', '0', 'Un número lo mostrará de primero.', '6', '8', now())");
     tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Real o Prueba', 'MODULE_PAYMENT_CECABANK_ENVIRONMENT', 'prueba', '<strong>Real: </strong>  Para procesar transacciones reales<br/><strong>Test: </strong>Para desarrollo y prueba', '6', '25', 'tep_cfg_select_option(array(\'real\', \'test\'), ', now())");
     tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Moneda', 'MODULE_PAYMENT_CECABANK_CURRENCY', '978', '<strong>Euro: </strong> 978, <strong>Dolares: </strong> 840', '6', '0', 'tep_cfg_select_option(array(\'978\', \'840\'), ', now())");
+    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Ícono', 'MODULE_PAYMENT_CECABANK_ICON', 'https://pgw.ceca.es/TPVvirtual/images/logo0000554000.gif', 'Ícono', '6', '1', now())");
   }
   
   function remove() {
@@ -280,7 +286,8 @@ class cecabank {
                        'MODULE_PAYMENT_CECABANK_SECRET',
                        'MODULE_PAYMENT_CECABANK_TITLE',
                        'MODULE_PAYMENT_CECABANK_DESCRIPTION',
-                       'MODULE_PAYMENT_CECABANK_CURRENCY'
+                       'MODULE_PAYMENT_CECABANK_CURRENCY',
+                       'MODULE_PAYMENT_CECABANK_ICON'
                         );
     
     return $keys_list;
