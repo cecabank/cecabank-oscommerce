@@ -30,7 +30,8 @@ try {
         'Exponente' => '2',
         'Cifrado' => 'SHA2',
         'Idioma' => '1',
-        'Pago_soportado' => 'SSL'
+        'Pago_soportado' => 'SSL',
+        'versionMod' => 'O-0.1.1'
     );
   }
 

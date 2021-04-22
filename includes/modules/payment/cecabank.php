@@ -83,7 +83,8 @@ class cecabank {
         'Exponente' => '2',
         'Cifrado' => 'SHA2',
         'Idioma' => '1',
-        'Pago_soportado' => 'SSL'
+        'Pago_soportado' => 'SSL',
+        'versionMod' => 'O-0.1.1'
     );
   }
   
@@ -295,7 +296,7 @@ class cecabank {
         'Importe' => round($order->info['total'], 2),
         'URL_OK' => tep_href_link(FILENAME_CHECKOUT_PROCESS, 'referer=cecabank', 'SSL'),
         'URL_NOK' => tep_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL'),
-        'datos_acs_20' => urlencode( json_encode( $acs ) )
+        'datos_acs_20' => base64_encode( str_replace( '[]', '{}', json_encode( $acs ) ) )
     ));
 	  return $cecabank_client->getFormHiddens();
   }
