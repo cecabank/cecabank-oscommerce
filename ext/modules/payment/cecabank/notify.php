@@ -26,7 +26,6 @@ try {
         'AcquirerBIN' => MODULE_PAYMENT_CECABANK_ACQUIRER,
         'TerminalID' => MODULE_PAYMENT_CECABANK_TERMINAL,
         'ClaveCifrado' => MODULE_PAYMENT_CECABANK_SECRET,
-        'TipoMoneda' => MODULE_PAYMENT_CECABANK_CURRENCY,
         'Exponente' => '2',
         'Cifrado' => 'SHA2',
         'Idioma' => '1',

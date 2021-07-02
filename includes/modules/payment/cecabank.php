@@ -79,7 +79,6 @@ class cecabank {
         'AcquirerBIN' => MODULE_PAYMENT_CECABANK_ACQUIRER,
         'TerminalID' => MODULE_PAYMENT_CECABANK_TERMINAL,
         'ClaveCifrado' => MODULE_PAYMENT_CECABANK_SECRET,
-        'TipoMoneda' => MODULE_PAYMENT_CECABANK_CURRENCY,
         'Exponente' => '2',
         'Cifrado' => 'SHA2',
         'Idioma' => '1',
@@ -296,6 +295,7 @@ class cecabank {
         'Importe' => round($order->info['total'], 2),
         'URL_OK' => tep_href_link(FILENAME_CHECKOUT_PROCESS, 'referer=cecabank', 'SSL'),
         'URL_NOK' => tep_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL'),
+        'TipoMoneda' => $cecabank_client->getCurrencyCode($order->info['currency']),
         'datos_acs_20' => base64_encode( str_replace( '[]', '{}', json_encode( $acs ) ) )
     ));
 	  return $cecabank_client->getFormHiddens();
@@ -345,7 +345,6 @@ class cecabank {
     tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Estado de orden', 'MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID', '2', 'Seleccionar el estado de la orden cuando el pago se ha realizado<br />(\'Processing\' recomendado)', '6', '6', 'tep_cfg_pull_down_order_statuses(', 'tep_get_order_status_name', now())");
     tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Order para mostrar', 'MODULE_PAYMENT_CECABANK_SORT_ORDER', '0', 'Un número lo mostrará de primero.', '6', '8', now())");
     tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Real o Prueba', 'MODULE_PAYMENT_CECABANK_ENVIRONMENT', 'prueba', '<strong>Real: </strong>  Para procesar transacciones reales<br/><strong>Test: </strong>Para desarrollo y prueba', '6', '25', 'tep_cfg_select_option(array(\'real\', \'test\'), ', now())");
-    tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Moneda', 'MODULE_PAYMENT_CECABANK_CURRENCY', '978', '<strong>Euro: </strong> 978, <strong>Dolares: </strong> 840', '6', '0', 'tep_cfg_select_option(array(\'978\', \'840\'), ', now())");
     tep_db_query("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Ícono', 'MODULE_PAYMENT_CECABANK_ICON', 'https://pgw.ceca.es/TPVvirtual/images/logo0000554000.gif', 'Ícono', '6', '1', now())");
   }
   
@@ -368,7 +367,6 @@ class cecabank {
                        'MODULE_PAYMENT_CECABANK_SECRET',
                        'MODULE_PAYMENT_CECABANK_TITLE',
                        'MODULE_PAYMENT_CECABANK_DESCRIPTION',
-                       'MODULE_PAYMENT_CECABANK_CURRENCY',
                        'MODULE_PAYMENT_CECABANK_ICON'
                         );
     
