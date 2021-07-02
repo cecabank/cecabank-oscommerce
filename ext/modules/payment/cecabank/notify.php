@@ -30,7 +30,7 @@ try {
         'Cifrado' => 'SHA2',
         'Idioma' => '1',
         'Pago_soportado' => 'SSL',
-        'versionMod' => 'O-0.1.1'
+        'versionMod' => 'O-0.1.2'
     );
   }
 
