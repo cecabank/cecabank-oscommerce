@@ -31,7 +31,7 @@ try {
         'Cifrado' => $cifrado,
         'Idioma' => '1',
         'Pago_soportado' => 'SSL',
-        'versionMod' => 'O-0.2.0'
+        'versionMod' => 'O-0.2.1'
     );
   }
 
@@ -41,7 +41,8 @@ try {
     try {
         $cecabank_client->checkTransaction($_POST);
     } catch (\Exception $e) {
-        $message = 'Ha ocurrido un error con el pago: '.$e->getMessage();
+        error_log('Cecabank: error verificando la transacción: '.$e->getMessage());
+        $message = 'Ha ocurrido un error con el pago.';
         tep_redirect(tep_href_link(FILENAME_CHECKOUT_PAYMENT, 'error_message=' . urlencode($message), 'NONSSL', true, false));
     }
 

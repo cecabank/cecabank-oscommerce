@@ -11,7 +11,7 @@ class Client
         'TerminalID' => '1',
         'TipoMoneda' => '978',
         'Exponente' => '2',
-        'Cifrado' => 'SHA1',
+        'Cifrado' => 'SHA2',
         'Idioma' => '1',
         'Pago_soportado' => 'SSL',
         'versionMod' => ''
@@ -381,8 +381,8 @@ class Client
 
         $signature = $this->makeHash($key, true, $post['Num_operacion']);
 
-        if (!hash_equals($signature, $post['Firma'])) {
-            throw new Exception(sprintf('Signature not valid (%s != %s)', $signature, $post['Firma']));
+        if (!hash_equals($signature, (string) $post['Firma'])) {
+            throw new Exception('Signature not valid');
         }
 
         return $post['Firma'];
@@ -397,9 +397,8 @@ class Client
             return $this->makeHmacSha256Hash($message, $replace, $num_operacion);
         }
 
-        $message = $this->options['ClaveCifrado'].$message;
-
         if ($this->options['Cifrado'] === 'SHA2') {
+            $message = $this->options['ClaveCifrado'].$message;
             if ( $replace ) {
                 $message = str_replace('&amp;', '&', $message);
                 $message = str_replace('#038;', '', $message);
@@ -407,7 +406,7 @@ class Client
             return hash('sha256', $message);
         }
 
-        return sha1($message);
+        throw new Exception('Unsupported Cifrado algorithm');
     }
 
     private function makeHmacSha256Hash($message, $replace, $num_operacion)

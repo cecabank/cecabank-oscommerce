@@ -84,7 +84,7 @@ class cecabank {
         'Cifrado' => $cifrado,
         'Idioma' => '1',
         'Pago_soportado' => 'SSL',
-        'versionMod' => 'O-0.2.0'
+        'versionMod' => 'O-0.2.1'
     );
   }
   
