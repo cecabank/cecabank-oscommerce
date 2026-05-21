@@ -20,7 +20,6 @@ try {
 }
 
   function get_client_config() {
-    $cifrado = strlen((string) MODULE_PAYMENT_CECABANK_SECRET) === 8 ? 'SHA2' : 'HMAC';
     return array(
         'Environment' => MODULE_PAYMENT_CECABANK_ENVIRONMENT,
         'MerchantID' => MODULE_PAYMENT_CECABANK_MERCHANT,
@@ -28,10 +27,10 @@ try {
         'TerminalID' => MODULE_PAYMENT_CECABANK_TERMINAL,
         'ClaveCifrado' => MODULE_PAYMENT_CECABANK_SECRET,
         'Exponente' => '2',
-        'Cifrado' => $cifrado,
+        'Cifrado' => 'SHA2',
         'Idioma' => '1',
         'Pago_soportado' => 'SSL',
-        'versionMod' => 'O-0.2.1'
+        'versionMod' => 'O-0.2.2'
     );
   }
 
