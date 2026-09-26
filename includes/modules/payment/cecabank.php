@@ -24,14 +24,30 @@ class cecabank {
   var $title;
   var $description;
   var $enabled;
-  
+
+  // Longitud de la clave secreta antigua. Con esa longitud exacta se firma con
+  // SHA2; con cualquier otra (la clave nueva tiene 32 caracteres) se firma con HMAC.
+  const LEGACY_SECRET_LENGTH = 8;
+
+  // Enlaces del aviso de seguridad que se muestra en el admin con la clave antigua.
+  const URL_TPV_PORTAL = 'https://comercios.ceca.es/';
+  const URL_SECURITY_BULLETIN = 'https://comercios.ceca.es/docs_constpv/seguridad/TPV_Virtual_Boletin_de_Seguridad_0525_001.pdf';
+  // Pendiente: URL del manual del plugin de osCommerce. Mientras esté vacía,
+  // "Manual plugin" se muestra como texto sin enlace.
+  const URL_PLUGIN_MANUAL = '';
+
   function cecabank() {
-    global $order;
+    global $order, $PHP_SELF;
     $this->code = 'cecabank';
     $this->title = 'Cecabank';
     $this->public_title = 'Pago con tarjeta (Cecabank)';
     if (IS_ADMIN_FLAG === true && MODULE_PAYMENT_CECABANK_ENVIRONMENT != 'real') $this->title .= '<span class="alert">(prueba activa)</span>';
     $this->description = 'Permite utilizar la pasarela de Cecabank en tu sitio web.';
+    // Aviso de seguridad con la clave antigua, solo en Admin > Módulos > Pago
+    // (FILENAME_MODULES solo existe en el admin, así que no se evalúa en el checkout)
+    if ( defined('FILENAME_MODULES') && ($PHP_SELF == FILENAME_MODULES) && cecabank::has_legacy_secret() ) {
+      $this->description = cecabank::get_legacy_secret_warning() . $this->description;
+    }
     $this->sort_order = MODULE_PAYMENT_CECABANK_SORT_ORDER;
     $this->enabled = ((MODULE_PAYMENT_CECABANK_STATUS == 'True') ? true : false);
     if ((int)MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID > 0) {
@@ -72,8 +88,64 @@ class cecabank {
     return false;
   }
 
+  /**
+   * Indica si una clave secreta es la antigua de 8 caracteres (firma SHA2).
+   * Es el único sitio donde se decide: lo usan get_client_config() para
+   * firmar y el aviso de seguridad del admin (módulo de pago y escritorio).
+   *
+   * @param string $secret
+   * @return bool
+   */
+  static function is_legacy_secret($secret) {
+    return strlen((string) $secret) === cecabank::LEGACY_SECRET_LENGTH;
+  }
+
+  /**
+   * Indica si la clave secreta configurada es la antigua de 8 caracteres,
+   * esté o no habilitado el módulo.
+   *
+   * @return bool
+   */
+  static function has_legacy_secret() {
+    return defined('MODULE_PAYMENT_CECABANK_SECRET') && cecabank::is_legacy_secret(MODULE_PAYMENT_CECABANK_SECRET);
+  }
+
+  /**
+   * HTML del aviso "Acción requerida" que se muestra en el admin. Los textos
+   * están en includes/languages/<idioma>/modules/payment/cecabank.php.
+   *
+   * @return string
+   */
+  static function get_legacy_secret_warning() {
+    $manual = MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_MANUAL;
+    if (cecabank::URL_PLUGIN_MANUAL != '') {
+      $manual = cecabank::get_legacy_secret_warning_link(cecabank::URL_PLUGIN_MANUAL, $manual);
+    }
+
+    return '<div class="secWarning">' .
+           '<p><strong>' . MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_TITLE . '</strong></p>' .
+           '<p>' . MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_INTRO . '</p>' .
+           '<ul>' .
+           '<li>' . sprintf(MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_STEP_KEY, cecabank::get_legacy_secret_warning_link(cecabank::URL_TPV_PORTAL, MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_PORTAL)) . '</li>' .
+           '<li>' . sprintf(MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_STEP_INFO, cecabank::get_legacy_secret_warning_link(cecabank::URL_SECURITY_BULLETIN, MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_BULLETIN), $manual) . '</li>' .
+           '</ul>' .
+           '<p>' . MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_FOOTER . '</p>' .
+           '</div>';
+  }
+
+  /**
+   * Enlace del aviso que se abre en una pestaña nueva.
+   *
+   * @param string $url
+   * @param string $text
+   * @return string
+   */
+  static function get_legacy_secret_warning_link($url, $text) {
+    return '<a href="' . $url . '" target="_blank" rel="noopener">' . $text . '</a>';
+  }
+
   function get_client_config() {
-    $cifrado = strlen((string) MODULE_PAYMENT_CECABANK_SECRET) === 8 ? 'SHA2' : 'HMAC';
+    $cifrado = cecabank::is_legacy_secret(MODULE_PAYMENT_CECABANK_SECRET) ? 'SHA2' : 'HMAC';
     return array(
         'Environment' => MODULE_PAYMENT_CECABANK_ENVIRONMENT,
         'MerchantID' => MODULE_PAYMENT_CECABANK_MERCHANT,
