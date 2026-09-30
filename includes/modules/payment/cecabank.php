@@ -24,14 +24,30 @@ class cecabank {
   var $title;
   var $description;
   var $enabled;
-  
+
+  // Longitud de la clave secreta antigua. Con esa longitud exacta se firma con
+  // SHA2; con cualquier otra (la clave nueva tiene 32 caracteres) se firma con HMAC.
+  const LEGACY_SECRET_LENGTH = 8;
+
+  // Enlaces del aviso de seguridad que se muestra en el admin con la clave antigua.
+  const URL_TPV_PORTAL = 'https://comercios.ceca.es/';
+  const URL_SECURITY_BULLETIN = 'https://comercios.ceca.es/docs_constpv/seguridad/TPV_Virtual_Boletin_de_Seguridad_0525_001.pdf';
+  // Pendiente: URL del manual del plugin de osCommerce. Mientras esté vacía,
+  // "Manual plugin" se muestra como texto sin enlace.
+  const URL_PLUGIN_MANUAL = '';
+
   function cecabank() {
-    global $order;
+    global $order, $PHP_SELF;
     $this->code = 'cecabank';
     $this->title = 'Cecabank';
     $this->public_title = 'Pago con tarjeta (Cecabank)';
     if (IS_ADMIN_FLAG === true && MODULE_PAYMENT_CECABANK_ENVIRONMENT != 'real') $this->title .= '<span class="alert">(prueba activa)</span>';
     $this->description = 'Permite utilizar la pasarela de Cecabank en tu sitio web.';
+    // Aviso de seguridad con la clave antigua, solo en Admin > Módulos > Pago
+    // (modules.php solo existe en el admin, así que no se evalúa en el checkout)
+    if ( (basename($PHP_SELF) == 'modules.php') && cecabank::has_legacy_secret() ) {
+      $this->description = '<div class="secWarning">' . cecabank::get_legacy_secret_warning() . '</div>' . $this->description;
+    }
     $this->sort_order = MODULE_PAYMENT_CECABANK_SORT_ORDER;
     $this->enabled = ((MODULE_PAYMENT_CECABANK_STATUS == 'True') ? true : false);
     if ((int)MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID > 0) {
@@ -72,18 +88,76 @@ class cecabank {
     return false;
   }
 
+  /**
+   * Indica si una clave secreta es la antigua de 8 caracteres (firma SHA2).
+   * Es el único sitio donde se decide: lo usan get_client_config() para
+   * firmar y el aviso de seguridad del admin (módulo de pago y escritorio).
+   *
+   * @param string $secret
+   * @return bool
+   */
+  static function is_legacy_secret($secret) {
+    return strlen((string) $secret) === cecabank::LEGACY_SECRET_LENGTH;
+  }
+
+  /**
+   * Indica si la clave secreta configurada es la antigua de 8 caracteres,
+   * esté o no habilitado el módulo.
+   *
+   * @return bool
+   */
+  static function has_legacy_secret() {
+    return defined('MODULE_PAYMENT_CECABANK_SECRET') && cecabank::is_legacy_secret(MODULE_PAYMENT_CECABANK_SECRET);
+  }
+
+  /**
+   * HTML del aviso "Acción requerida" que se muestra en el admin, sin caja:
+   * el módulo de pago lo envuelve en un div.secWarning y el hook del escritorio
+   * (includes/hooks/admin/siteWide/cecabank_security.php) lo pasa al
+   * messageStack de Phoenix. Los textos están en
+   * includes/languages/<idioma>/modules/payment/cecabank.php.
+   *
+   * @return string
+   */
+  static function get_legacy_secret_warning() {
+    $manual = MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_MANUAL;
+    if (cecabank::URL_PLUGIN_MANUAL != '') {
+      $manual = cecabank::get_legacy_secret_warning_link(cecabank::URL_PLUGIN_MANUAL, $manual);
+    }
+
+    return '<strong>' . MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_TITLE . '</strong><br>' .
+           MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_INTRO .
+           '<ul>' .
+           '<li>' . sprintf(MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_STEP_KEY, cecabank::get_legacy_secret_warning_link(cecabank::URL_TPV_PORTAL, MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_PORTAL)) . '</li>' .
+           '<li>' . sprintf(MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_STEP_INFO, cecabank::get_legacy_secret_warning_link(cecabank::URL_SECURITY_BULLETIN, MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_BULLETIN), $manual) . '</li>' .
+           '</ul>' .
+           MODULE_PAYMENT_CECABANK_TEXT_SECRET_WARNING_FOOTER;
+  }
+
+  /**
+   * Enlace del aviso que se abre en una pestaña nueva.
+   *
+   * @param string $url
+   * @param string $text
+   * @return string
+   */
+  static function get_legacy_secret_warning_link($url, $text) {
+    return '<a href="' . $url . '" target="_blank" rel="noopener">' . $text . '</a>';
+  }
+
   function get_client_config() {
+    $cifrado = cecabank::is_legacy_secret(MODULE_PAYMENT_CECABANK_SECRET) ? 'SHA2' : 'HMAC';
     return array(
         'Environment' => MODULE_PAYMENT_CECABANK_ENVIRONMENT,
         'MerchantID' => MODULE_PAYMENT_CECABANK_MERCHANT,
         'AcquirerBIN' => MODULE_PAYMENT_CECABANK_ACQUIRER,
         'TerminalID' => MODULE_PAYMENT_CECABANK_TERMINAL,
         'ClaveCifrado' => MODULE_PAYMENT_CECABANK_SECRET,
-        'TipoMoneda' => MODULE_PAYMENT_CECABANK_CURRENCY,
         'Exponente' => '2',
-        'Cifrado' => 'SHA2',
+        'Cifrado' => $cifrado,
         'Idioma' => '1',
-        'Pago_soportado' => 'SSL'
+        'Pago_soportado' => 'SSL',
+        'versionMod' => 'O-0.2.2'
     );
   }
   
@@ -128,8 +202,6 @@ class cecabank {
     $city = $order->billing['city'];
     $country = $order->billing['country']['iso_code_2'];
     $line1 = $order->billing['street_address'];
-    $line2 = '';
-    $line3 = '';
     $postal_code = $order->billing['postcode'];
     $state = $order->billing['state'];
     $phone = preg_replace('/\D/', '', $order->customer['telephone']);
@@ -137,8 +209,6 @@ class cecabank {
     $ship_city = $order->delivery['city'];
     $ship_country = $order->delivery['country']['iso_code_2'];
     $ship_line1 = $order->delivery['street_address'];
-    $ship_line2 = '';
-    $ship_line3 = '';
     $ship_postal_code = $order->delivery['postcode'];
     $ship_state = $order->delivery['state'];
     $ship_indicator = 'CH_BILLING_ADDRESS';
@@ -148,73 +218,159 @@ class cecabank {
     if ($line1 !== $ship_line1) {
         $ship_indicator = 'CH_NOT_BILLING_ADDRESS';
     }
-    $acs = array(
-        'CARDHOLDER'        => array(
-            'NAME'          => $name,
-            'EMAIL'         => $email,
-            'BILL_ADDRESS'  => array(
-                'CITY'      => $city,
-                'COUNTRY'   => $country,
-                'LINE1'     => $line1,
-                'LINE2'     => $line2,
-                'LINE3'     => $line3,
-                'POST_CODE' => $postal_code,
-                'STATE'     => $state
-            ),
-        ),
-        'PURCHASE'          => array(
-            'SHIP_ADDRESS'  => array(
-                'CITY'      => $ship_city,
-                'COUNTRY'   => $ship_country,
-                'LINE1'     => $ship_line1,
-                'LINE2'     => $ship_line2,
-                'LINE3'     => $ship_line3,
-                'POST_CODE' => $ship_postal_code,
-                'STATE'     => $ship_state
-            ),
-            'MOBILE_PHONE'  => array(
-                'CC'        => '',
-                'SUBSCRIBER'=> $phone
-            ),
-            'WORK_PHONE'    => array(
-                'CC'        => '',
-                'SUBSCRIBER'=> ''
-            ),
-            'HOME_PHONE'    => array(
-                'CC'        => '',
-                'SUBSCRIBER'=> ''
-            ),
-        ),
-        'MERCHANT_RISK_IND' => array(
-            'SHIP_INDICATOR'=> $ship_indicator,
-            'DELIVERY_TIMEFRAME' => $delivery_time_frame,
-            'DELIVERY_EMAIL_ADDRESS' => $delivery_email,
-            'REORDER_ITEMS_IND' => $reorder_items,
-            'PRE_ORDER_PURCHASE_IND' => 'AVAILABLE',
-            'PRE_ORDER_DATE'=> '',
-        ),
-        'ACCOUNT_INFO'      => array(
-            'CH_ACC_AGE_IND'=> $user_age,
-            'CH_ACC_CHANGE_IND' => $user_info_age,
-            'CH_ACC_CHANGE' => $registered,
-            'CH_ACC_DATE'   => $registered,
-            'TXN_ACTIVITY_DAY' => $txn_activity_today,
-            'TXN_ACTIVITY_YEAR' => $txn_activity_year,
-            'NB_PURCHASE_ACCOUNT' => $txn_purchase_6,
-            'SUSPICIOUS_ACC_ACTIVITY' => 'NO_SUSPICIOUS',
-            'SHIP_NAME_INDICATOR' => $ship_name_indicator,
-            'PAYMENT_ACC_IND' => $user_age,
-            'PAYMENT_ACC_AGE' => $registered
-        )
+
+    // ACS
+    $acs = array();
+
+    // Cardholder
+    $cardholder = array();
+    $add_cardholder = false;
+
+    // Cardholder bill address
+    $bill_address = array();
+    $add_bill_address = false;
+    if ($city) {
+        $bill_address['CITY'] = $city;
+        $add_bill_address = true;
+    }                
+    if ($country) {
+        $bill_address['COUNTRY'] = $country;
+        $add_bill_address = true;
+    }
+    if ($line1) {
+        $bill_address['LINE1'] = $line1;
+        $add_bill_address = true;
+    }
+    if ($postal_code) {
+        $bill_address['POST_CODE'] = $postal_code;
+        $add_bill_address = true;
+    }                
+    if ($state) {
+        $bill_address['STATE'] = $state;
+        $add_bill_address = true;
+    }
+    if ($add_bill_address) {
+        $cardholder['BILL_ADDRESS'] = $bill_address;
+        $add_cardholder = true;
+    }
+
+    // Cardholder name
+    if ($name) {
+        $cardholder['NAME'] = $name;
+        $add_cardholder = true;
+    }
+
+    // Cardholder email
+    if ($email) {
+        $cardholder['EMAIL'] = $email;
+        $add_cardholder = true;
+    }
+
+    if ($add_cardholder) {
+        $acs['CARDHOLDER'] = $cardholder;
+    }
+
+    // Purchase
+    $purchase = array();
+    $add_purchase = true;
+
+    // Purchase ship address
+    $ship_address = array();
+    $add_ship_address = false;
+    if ($ship_city) {
+        $ship_address['CITY'] = $ship_city;
+        $add_ship_address = true;
+    }                
+    if ($ship_country) {
+        $ship_address['COUNTRY'] = $ship_country;
+        $add_ship_address = true;
+    }
+    if ($ship_line1) {
+        $ship_address['LINE1'] = $ship_line1;
+        $add_ship_address = true;
+    }
+    if ($ship_postal_code) {
+        $ship_address['POST_CODE'] = $ship_postal_code;
+        $add_ship_address = true;
+    }                
+    if ($ship_state) {
+        $ship_address['STATE'] = $ship_state;
+        $add_ship_address = true;
+    }
+    if ($add_ship_address) {
+        $purchase['SHIP_ADDRESS'] = $ship_address;
+        $add_purchase = true;
+    }
+
+    // Purchase mobile phone
+    if ($phone) {
+        $purchase['MOBILE_PHONE'] = array(
+            'SUBSCRIBER' => $phone
+        );
+        $add_purchase = true;
+    }
+
+    if ($add_purchase) {
+        $acs['PURCHASE'] = $purchase;
+    }
+
+    // Merchant risk
+    $merchant_risk = array(
+        'PRE_ORDER_PURCHASE_IND' => 'AVAILABLE'
     );
+    if ($ship_indicator) {
+        $merchant_risk['SHIP_INDICATOR'] = $ship_indicator;
+    }
+    if ($delivery_time_frame) {
+        $merchant_risk['DELIVERY_TIMEFRAME'] = $delivery_time_frame;
+    }
+    if ($delivery_email) {
+        $merchant_risk['DELIVERY_EMAIL_ADDRESS'] = $delivery_email;
+    }
+    if ($reorder_items) {
+        $merchant_risk['REORDER_ITEMS_IND'] = $reorder_items;
+    }
+    $acs['MERCHANT_RISK_IND'] = $merchant_risk;
+
+    // Account info
+    $account_info = array(
+        'SUSPICIOUS_ACC_ACTIVITY' => 'NO_SUSPICIOUS'
+    );
+    if ($user_age) {
+        $account_info['CH_ACC_AGE_IND'] = $user_age;
+        $account_info['PAYMENT_ACC_IND'] = $user_age;
+    }
+    if ($user_info_age) {
+        $account_info['CH_ACC_CHANGE_IND'] = $user_info_age;
+    }
+    if ($registered) {
+        $account_info['CH_ACC_CHANGE'] = $registered;
+        $account_info['CH_ACC_DATE'] = $registered;
+        $account_info['PAYMENT_ACC_AGE'] = $registered;
+    }
+    if ($txn_activity_today) {
+        $account_info['TXN_ACTIVITY_DAY'] = $txn_activity_today;
+    }
+    if ($txn_activity_year) {
+        $account_info['TXN_ACTIVITY_YEAR'] = $txn_activity_year;
+    }
+    if ($txn_purchase_6) {
+        $account_info['NB_PURCHASE_ACCOUNT'] = $txn_purchase_6;
+    }
+    if ($ship_name_indicator) {
+        $account_info['SHIP_NAME_INDICATOR'] = $ship_name_indicator;
+    }
+    $acs['ACCOUNT_INFO'] = $account_info;
+
     // Create transaction
     $cecabank_client->setFormHiddens(array(
         'Num_operacion' => $cartID,
         'Descripcion' => 'Pago del pedido '.$cartID,
         'Importe' => round($order->info['total'], 2),
-        'URL_OK' => tep_href_link(FILENAME_CHECKOUT_PROCESS, 'referer=cecabank', 'SSL'),
-        'URL_NOK' => tep_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL'),
-        'datos_acs_20' => urlencode( json_encode( $acs ) )
+        'URL_OK' => tep_href_link('checkout_process.php', 'referer=cecabank', 'SSL'),
+        'URL_NOK' => tep_href_link('checkout_payment.php', '', 'SSL'),
+        'TipoMoneda' => $cecabank_client->getCurrencyCode($order->info['currency']),
+        'datos_acs_20' => base64_encode( str_replace( '[]', '{}', json_encode( $acs ) ) )
     ));
 	  return $cecabank_client->getFormHiddens();
   }
@@ -263,7 +419,6 @@ class cecabank {
     tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Estado de orden', 'MODULE_PAYMENT_CECABANK_ORDER_STATUS_ID', '2', 'Seleccionar el estado de la orden cuando el pago se ha realizado<br />(\'Processing\' recomendado)', '6', '6', 'tep_cfg_pull_down_order_statuses(', 'tep_get_order_status_name', now())");
     tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Order para mostrar', 'MODULE_PAYMENT_CECABANK_SORT_ORDER', '0', 'Un número lo mostrará de primero.', '6', '8', now())");
     tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Real o Prueba', 'MODULE_PAYMENT_CECABANK_ENVIRONMENT', 'prueba', '<strong>Real: </strong>  Para procesar transacciones reales<br/><strong>Test: </strong>Para desarrollo y prueba', '6', '25', 'tep_cfg_select_option(array(\'real\', \'test\'), ', now())");
-    tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Moneda', 'MODULE_PAYMENT_CECABANK_CURRENCY', '978', '<strong>Euro: </strong> 978, <strong>Dolares: </strong> 840', '6', '0', 'tep_cfg_select_option(array(\'978\', \'840\'), ', now())");
     tep_db_query("insert into configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Ícono', 'MODULE_PAYMENT_CECABANK_ICON', 'https://pgw.ceca.es/TPVvirtual/images/logo0000554000.gif', 'Ícono', '6', '1', now())");
   }
   
@@ -286,7 +441,6 @@ class cecabank {
                        'MODULE_PAYMENT_CECABANK_SECRET',
                        'MODULE_PAYMENT_CECABANK_TITLE',
                        'MODULE_PAYMENT_CECABANK_DESCRIPTION',
-                       'MODULE_PAYMENT_CECABANK_CURRENCY',
                        'MODULE_PAYMENT_CECABANK_ICON'
                         );
     

@@ -11,13 +11,41 @@ class Client
         'TerminalID' => '1',
         'TipoMoneda' => '978',
         'Exponente' => '2',
-        'Cifrado' => 'SHA1',
+        'Cifrado' => 'SHA2',
         'Idioma' => '1',
-        'Pago_soportado' => 'SSL'
+        'Pago_soportado' => 'SSL',
+        'versionMod' => ''
+    );
+
+    private $currencies = array(
+        'EUR' => '978',
+        'AUD' => '36',
+        'CAD' => '124',
+        'CNY' => '156',
+        'CZK' => '203',
+        'DKK' => '208',
+        'JPY' => '392',
+        'MXN' => '484',
+        'NOK' => '578',
+        'RUB' => '643',
+        'SEK' => '752',
+        'CHF' => '756',
+        'GBP' => '826',
+        'USD' => '840',
+        'RON' => '946',
+        'PLN' => '985',
+        'ARS' => '32' ,
+        'CLP' => '152',
+        'COP' => '170',
+        'INR' => '356',
+        'PEN' => '604',
+        'BRL' => '986',
+        'VEF' => '937',
+        'TRY' => '949',
     );
 
     private $o_required = array('Environment', 'ClaveCifrado', 'MerchantID', 'AcquirerBIN', 'TerminalID', 'TipoMoneda', 'Exponente', 'Cifrado', 'Pago_soportado');
-    private $o_optional = array('Idioma', 'Descripcion', 'URL_OK', 'URL_NOK', 'Tipo_operacion', 'Datos_operaciones', 'PAN', 'Caducidad', 'CVV2', 'Pago_elegido');
+    private $o_optional = array('Idioma', 'Descripcion', 'URL_OK', 'URL_NOK', 'Tipo_operacion', 'Datos_operaciones', 'PAN', 'Caducidad', 'CVV2', 'Pago_elegido', 'versionMod');
 
     private $environment = '';
     private $environments = array(
@@ -119,6 +147,13 @@ class Client
         return $key ? $this->refund_environments[$key] : $this->refund_environments;
     }
 
+    public function getCurrencyCode($currency) {
+        if (isset($this->currencies[$currency])) {
+            return $this->currencies[$currency];
+        }
+        return '978';
+    }
+
     public function setFormHiddens(array $options)
     {
         $this->hidden = $this->values = array();
@@ -132,8 +167,10 @@ class Client
         $this->setValueDefault($options, 'Exponente');
         $this->setValueDefault($options, 'Cifrado');
         $this->setValueDefault($options, 'Pago_soportado');
+        $this->setValueDefault($options, 'versionMod');
         $this->setValueDefault($options, 'Idioma');
 
+        $this->setValue($options, 'TipoMoneda');
         $this->setValue($options, 'Num_operacion');
         $this->setValue($options, 'Importe');
         $this->setValue($options, 'URL_OK');
@@ -176,6 +213,7 @@ class Client
         $this->setValueDefault($options, 'Cifrado');
         $this->setValueDefault($options, 'Idioma');
 
+        $this->setValue($options, 'TipoMoneda');
         $this->setValue($options, 'Num_operacion');
         $this->setValue($options, 'Importe');
         $this->setValue($options, 'Referencia');
@@ -305,7 +343,7 @@ class Client
             $key .= $this->values[$field];
         }
 
-        return $this->makeHash($key);
+        return $this->makeHash($key, true, $this->values['Num_operacion']);
     }
 
     public function getRefundSignature()
@@ -321,7 +359,7 @@ class Client
             $key .= $this->values[$field];
         }
 
-        return $this->makeHash($key);
+        return $this->makeHash($key, true, $this->values['Num_operacion']);
     }
 
     public function checkTransaction(array $post)
@@ -341,20 +379,26 @@ class Client
             $key .= $post[$field];
         }
 
-        $signature = $this->makeHash($key);
+        $signature = $this->makeHash($key, true, $post['Num_operacion']);
 
-        if ($signature !== $post['Firma']) {
-            throw new Exception(sprintf('Signature not valid (%s != %s)', $signature, $post['Firma']));
+        if (!hash_equals($signature, (string) $post['Firma'])) {
+            throw new Exception('Signature not valid');
         }
 
         return $post['Firma'];
     }
 
-    private function makeHash($message, $replace = true)
+    private function makeHash($message, $replace = true, $num_operacion = null)
     {
-        $message = $this->options['ClaveCifrado'].$message;
+        if ($this->options['Cifrado'] === 'HMAC') {
+            if ($num_operacion === null && isset($this->values['Num_operacion'])) {
+                $num_operacion = $this->values['Num_operacion'];
+            }
+            return $this->makeHmacSha256Hash($message, $replace, $num_operacion);
+        }
 
         if ($this->options['Cifrado'] === 'SHA2') {
+            $message = $this->options['ClaveCifrado'].$message;
             if ( $replace ) {
                 $message = str_replace('&amp;', '&', $message);
                 $message = str_replace('#038;', '', $message);
@@ -362,7 +406,56 @@ class Client
             return hash('sha256', $message);
         }
 
-        return sha1($message);
+        throw new Exception('Unsupported Cifrado algorithm');
+    }
+
+    private function makeHmacSha256Hash($message, $replace, $num_operacion)
+    {
+        if (empty($num_operacion)) {
+            throw new Exception('Num_operacion is required to compute HMAC signature');
+        }
+
+        $cadena = $this->options['ClaveCifrado'].$message;
+        if ($replace) {
+            $cadena = str_replace('&amp;', '&', $cadena);
+        }
+
+        $hmacKey = $this->deriveHmacSha256Key($this->options['ClaveCifrado'], $num_operacion);
+        $hash = hash_hmac('sha256', $cadena, $hmacKey, true);
+
+        return base64_encode($hash);
+    }
+
+    private function deriveHmacSha256Key($claveComercio, $num_operacion)
+    {
+        // Base64-decoded merchant key is the 24-byte 3DES key.
+        $key3des = base64_decode($claveComercio);
+
+        // 3DES-CBC of the operation number with manual zero padding to a
+        // multiple of 8 bytes and a fixed zero IV. The output is the binary
+        // key used by HMAC-SHA256.
+        $blockSize = 8;
+        $remainder = strlen($num_operacion) % $blockSize;
+        $padded = $num_operacion;
+        if ($remainder !== 0) {
+            $padded .= str_repeat("\0", $blockSize - $remainder);
+        }
+
+        $iv = str_repeat("\0", 8);
+
+        $encrypted = openssl_encrypt(
+            $padded,
+            'des-ede3-cbc',
+            $key3des,
+            OPENSSL_RAW_DATA | OPENSSL_ZERO_PADDING,
+            $iv
+        );
+
+        if ($encrypted === false) {
+            throw new Exception('Failed to derive HMAC key with 3DES');
+        }
+
+        return $encrypted;
     }
 
     public function successCode()

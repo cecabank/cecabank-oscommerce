@@ -10,7 +10,7 @@
 chdir("../../../../");
 require('includes/application_top.php');
 require('includes/modules/payment/cecabank.php');
-include(DIR_WS_LANGUAGES . $language . '/' . FILENAME_CHECKOUT_PROCESS);
+include('includes/languages/' . $language . '/checkout_process.php');
 
 $autoloader_param = 'includes/modules/payment/cecabank_lib/Cecabank/Client.php';
 try {
@@ -26,11 +26,11 @@ try {
         'AcquirerBIN' => MODULE_PAYMENT_CECABANK_ACQUIRER,
         'TerminalID' => MODULE_PAYMENT_CECABANK_TERMINAL,
         'ClaveCifrado' => MODULE_PAYMENT_CECABANK_SECRET,
-        'TipoMoneda' => MODULE_PAYMENT_CECABANK_CURRENCY,
         'Exponente' => '2',
         'Cifrado' => 'SHA2',
         'Idioma' => '1',
-        'Pago_soportado' => 'SSL'
+        'Pago_soportado' => 'SSL',
+        'versionMod' => 'O-0.2.2'
     );
   }
 
@@ -40,19 +40,19 @@ try {
     try {
         $cecabank_client->checkTransaction($_POST);
     } catch (\Exception $e) {
-        $message = 'Ha ocurrido un error con el pago: '.$e->getMessage();
-        tep_redirect(tep_href_link(FILENAME_CHECKOUT_PAYMENT, 'error_message=' . urlencode($message), 'NONSSL', true, false));
+        error_log('Cecabank: error verificando la transacción: '.$e->getMessage());
+        $message = 'Ha ocurrido un error con el pago.';
+        tep_redirect(tep_href_link('checkout_payment.php', 'error_message=' . urlencode($message), 'NONSSL', true, false));
     }
 
     $payment_module = new cecabank();
 
-    require(DIR_WS_CLASSES . "order.php");
+    // Las clases order y order_total las carga el autoloader de Phoenix
     $order = new order($_POST['Num_operacion']);
 
 $order_status_query = tep_db_query("SELECT orders_status_id FROM orders_status WHERE orders_status_name = '" . $order->info['orders_status'] . "' AND language_id = '" . $languages_id . "'");
     $order_status = tep_db_fetch_array($order_status_query);
     $order->info['order_status'] = $order_status['orders_status_id'];
-    require(DIR_WS_CLASSES . "order_total.php");
     $order_total_modules = new order_total();
     //Set some globals (expected by osCommerce)
     $customer_id = $order->customer['id'];
