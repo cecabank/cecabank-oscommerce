@@ -32,9 +32,9 @@ class cecabank {
   // Enlaces del aviso de seguridad que se muestra en el admin con la clave antigua.
   const URL_TPV_PORTAL = 'https://comercios.ceca.es/';
   const URL_SECURITY_BULLETIN = 'https://comercios.ceca.es/docs_constpv/seguridad/TPV_Virtual_Boletin_de_Seguridad_0525_001.pdf';
-  // Pendiente: URL del manual del plugin de osCommerce. Mientras esté vacía,
-  // "Manual plugin" se muestra como texto sin enlace.
-  const URL_PLUGIN_MANUAL = '';
+  // Manual del plugin de osCommerce (si se deja vacía, "Manual plugin" se
+  // muestra como texto sin enlace).
+  const URL_PLUGIN_MANUAL = 'https://comercios.ceca.es/resourcesPortal/descargables_portal/manual_oscommerce.pdf';
 
   function cecabank() {
     global $order, $PHP_SELF;
@@ -157,7 +157,7 @@ class cecabank {
         'Cifrado' => $cifrado,
         'Idioma' => '1',
         'Pago_soportado' => 'SSL',
-        'versionMod' => 'O-0.2.2'
+        'versionMod' => 'O-0.3.0'
     );
   }
   

@@ -28,7 +28,7 @@ Cecabank ha sustituido la clave secreta de 8 caracteres (firma SHA2) por una de 
 - Escritorio del admin (hook `includes/hooks/admin/siteWide/cecabank_security.php`, que lo añade a los mensajes del admin).
 - Modules > Payment, al seleccionar Cecabank (en la descripción del módulo).
 
-Los textos están en los ficheros de idioma del módulo. El enlace al manual del plugin se configura en la constante `URL_PLUGIN_MANUAL` de la clase `cecabank`; mientras esté vacía, "Manual plugin" se muestra sin enlace.
+Los textos están en los ficheros de idioma del módulo. El enlace al manual del plugin (https://comercios.ceca.es/resourcesPortal/descargables_portal/manual_oscommerce.pdf) se configura en la constante `URL_PLUGIN_MANUAL` de la clase `cecabank`; si se deja vacía, "Manual plugin" se muestra sin enlace.
 
 # Uso
 
